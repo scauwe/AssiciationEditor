@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.0"?>
+<plugin>
+   id="info.vancauwenberge.idm.association"
+   name="AssociationEditor"
+   version="0.1"
+   provider-name="SVC"
+
+   <extension
+         point="org.eclipse.ui.popupMenus">
+         <objectContribution
+            objectClass="com.novell.idm.model.impl.ItemImpl"
+            id="com.novell.idm.deploy.internal.deploy.ObjectContribution">
+         <visibility>
+			<and>
+				<!-- List 'Container' items. -->
+		        <objectClass name="com.novell.idm.model.impl.ApplicationImpl"/>
+			    <objectState name="real_app" value=""/>
+			</and>
+         </visibility>
+	     <action 
+               label="Association Editor"
+               class="info.vancauwenberge.idm.association.actions.AssociationAction"
+               tooltip="Edit driver associations"
+               menubarPath="com.novell.idm.driver_submenu/securityGroup"
+               icon="icons/sample2_16.png"
+               id="info.vancauwenberge.idm.association.actions.AssociationAction">
+               <enablement>
+					<objectState name="connected" value="true"/>
+				</enablement>
+         </action>
+         </objectContribution>
+         
+         
+		 <objectContribution
+            objectClass="com.novell.idm.markers.ModelMarker"
+            id="com.novell.idm.deploy.internal.deploy.ObjectContribution">
+         <visibility>
+         	<and>
+	         	<objectClass name="com.novell.idm.markers.ApplicationMarker"/>
+			 	<objectState name="connected" value="true"/>
+			    <objectState name="real_app" value=""/>
+				<not>
+					<objectState name="mode" value="architect"/>
+				</not>
+			</and>
+         </visibility>
+          <action
+               label="Association Editor"
+               class="info.vancauwenberge.idm.association.actions.AssociationAction"
+               tooltip="Edit driver associations"
+               menubarPath="com.novell.idm.driver_submenu/securityGroup"
+               icon="icons/sample2_16.png"
+               id="info.vancauwenberge.idm.association.actions.AssociationAction">
+               <enablement>
+					<objectState name="connected" value="true"/>
+				</enablement>
+         </action>              
+         </objectContribution>
+         
+         
+         <objectContribution
+            objectClass="com.novell.idm.markers.ModelMarker"
+            id="com.novell.idm.deploy.internal.deploy.ObjectContribution">
+         <visibility>
+         	<and>
+				<or>
+					<!-- List 'Container' items. -->
+			        <objectClass name="com.novell.idm.markers.DriverMarker"/>
+				</or>
+				<not>
+					<objectState name="mode" value="architect"/>
+				</not>
+			</and>				
+         </visibility>
+         <action
+               label="Association Editor"
+               class="info.vancauwenberge.idm.association.actions.AssociationAction"
+               tooltip="Edit driver associations"
+               menubarPath="com.novell.idm.live_submenu/securityGroup"
+               icon="icons/sample2_16.png"
+               id="info.vancauwenberge.idm.association.actions.AssociationAction">
+         </action>         
+         </objectContribution>
+         
+         
+         <objectContribution
+            objectClass="com.novell.idm.model.impl.ItemImpl"
+            id="com.novell.idm.deploy.internal.deploy.ObjectContribution">
+         <visibility>
+			<or>
+				<!-- List 'Container' items. -->
+		        <objectClass name="com.novell.idm.model.impl.DriverImpl"/>
+			</or>
+         </visibility>
+         <action
+               label="Association Editor"
+               class="info.vancauwenberge.idm.association.actions.AssociationAction"
+               tooltip="Edit driver associations"
+               menubarPath="com.novell.idm.live_submenu/securityGroup"
+               icon="icons/sample2_16.png"
+               id="info.vancauwenberge.idm.association.actions.AssociationAction">
+         </action>
+         </objectContribution>
+   </extension>
+
+</plugin>
