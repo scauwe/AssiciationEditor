@@ -1,12 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?eclipse version="3.0"?>
+<?eclipse version="3.4"?>
 <plugin>
-   id="info.vancauwenberge.idm.association"
-   name="AssociationEditor"
-   version="0.1"
-   provider-name="SVC"
-
-   <extension
+      <extension
          point="org.eclipse.ui.popupMenus">
          <objectContribution
             objectClass="com.novell.idm.model.impl.ItemImpl"
@@ -103,5 +98,6 @@
          </action>
          </objectContribution>
    </extension>
+
 
 </plugin>

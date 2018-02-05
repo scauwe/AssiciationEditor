@@ -3,10 +3,6 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 package info.vancauwenberge.idm.association.job;
 
-import info.vancauwenberge.idm.association.Activator;
-import info.vancauwenberge.idm.association.actions.api.Const;
-import info.vancauwenberge.idm.association.dialog.AssociationStatusDialog;
-
 import java.security.Security;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -31,6 +27,10 @@ import com.novell.ldap.LDAPConnection;
 import com.novell.ldap.LDAPJSSESecureSocketFactory;
 import com.sun.net.ssl.internal.ssl.Provider;
 
+import info.vancauwenberge.idm.association.Activator;
+import info.vancauwenberge.idm.association.actions.api.Const;
+import info.vancauwenberge.idm.association.dialog.AssociationStatusDialog;
+
 public abstract class AbstarctLDAPJob extends Job {
 
 	protected IProgressMonitor monitor;
@@ -43,13 +43,13 @@ public abstract class AbstarctLDAPJob extends Job {
 	private static final Status ERROR = new Status(Status.ERROR, Activator.PLUGIN_ID, "Finished with errors");
 
 
-	protected AbstarctLDAPJob(String name, IdentityVault vault) {
+	protected AbstarctLDAPJob(final String name, final IdentityVault vault) {
 		super(name);
 		this.vault = vault;
 		addJobLogMessage(name);
 	}
-	
-	
+
+
 	public void setCompleteInError()
 	{
 		errorWhilProcessing = true;
@@ -58,7 +58,7 @@ public abstract class AbstarctLDAPJob extends Job {
 	public void setException(Throwable th){
 		this.exception = th;
 	}*/
-	
+
 	public void incrementObjectCount(){
 		//TODO: remove this delay. Only for test purposes to see that it is actually doing something.
 		/*try {
@@ -67,79 +67,83 @@ public abstract class AbstarctLDAPJob extends Job {
 		}*/
 		objectCount++;
 	}
-	
+
 	public void incrementAssociationCount(){
 		associationCount++;
 	}
-	
-	 protected void showResults() {
-	        Display.getDefault().asyncExec(new Runnable() {
-	           public void run() {
-	              getJobFinishedAction().run();
-	           }
-	        });
-	     }
 
-	 private final Action getJobFinishedAction() {
-		 
-			Action action = new Action(getName()) {
-				public void run() {
-					StringBuilder message = new StringBuilder();
-					if (getActionResultStatus().isOK())
-						message.append("Task completed with success.\n");
-					else
-						message.append("Task completed with errors.\n");
-					//Append the total number of objects and associations processed
-					message.append("Associations: ").append(associationCount).append("\n");
-					message.append("Objects: ").append(objectCount ).append("\n");
-					/*
+	protected void showResults() {
+		Display.getDefault().asyncExec(new Runnable() {
+			@Override
+			public void run() {
+				getJobFinishedAction().run();
+			}
+		});
+	}
+
+	private final Action getJobFinishedAction() {
+
+		final Action action = new Action(getName()) {
+			@Override
+			public void run() {
+				final StringBuilder message = new StringBuilder();
+				if (getActionResultStatus().isOK()) {
+					message.append("Task completed with success.\n");
+				} else {
+					message.append("Task completed with errors.\n");
+				}
+				//Append the total number of objects and associations processed
+				message.append("Associations: ").append(associationCount).append("\n");
+				message.append("Objects: ").append(objectCount ).append("\n");
+				/*
 					Iterator<String> messageIter = messages.iterator();
 					while (messageIter.hasNext()) {
 						String string = (String) messageIter.next();
 						message.append(string).append("\n");
 					}*/
-					
-					/*MessageDialog
+
+				/*MessageDialog
 							.openInformation(
 									Activator.getActiveShell(),
 									errorWhilProcessing ? "Task completed with errors."
 											: "Task completed with success.",
 											message.toString());*/
-					AssociationStatusDialog status = new AssociationStatusDialog(Activator.getActiveShell(), message.toString(), messages.toArray(new String[messages.size()]));
-					status.open();
-				}
-			};
-			return action;
-		}
-	
-	 
-	
+				final AssociationStatusDialog status = new AssociationStatusDialog(Activator.getActiveShell(), message.toString(), messages.toArray(new String[messages.size()]));
+				status.open();
+			}
+		};
+		return action;
+	}
+
+
+
 	protected IStatus getActionResultStatus(){
 		if (thisActionResultStates == null){
 			thisActionResultStates=monitor.isCanceled()?
-				Status.CANCEL_STATUS:
-					(errorWhilProcessing?ERROR:OK);
+					Status.CANCEL_STATUS:
+						(errorWhilProcessing?ERROR:OK);
 		}
 		return thisActionResultStates ;
 	}
-	
-	
-	public void addJobLogMessage(String message){
-		if (monitor != null)
+
+
+	public void addJobLogMessage(final String message){
+		if (monitor != null) {
 			monitor.subTask(message);
-		messages.addFirst(message);
+		}
+		messages.addLast(message);
 	}
-	
-	
+
+
 	@Override
-	protected IStatus run(IProgressMonitor monitor) {
+	protected IStatus run(final IProgressMonitor monitor) {
 		this.monitor = monitor;
-		SimpleDateFormat df = new SimpleDateFormat("yyyy-MMM-dd HH:mm:ss.SSS");
+		final SimpleDateFormat df = new SimpleDateFormat("yyyy-MMM-dd HH:mm:ss.SSS");
 		addJobLogMessage("Starting job at "+df.format(new Date()));
 		doJob();
 		setProperty(IProgressConstants.ICON_PROPERTY, Activator.getImageDescriptor("icons/sample2.png"));
 		setProperty(IProgressConstants.NO_IMMEDIATE_ERROR_PROMPT_PROPERTY, Boolean.TRUE);
-     
+
 		if (isModal(this)) {
 			// The progress dialog is still open so
 			// just open the message
@@ -150,75 +154,77 @@ public abstract class AbstarctLDAPJob extends Job {
 		setProperty(IProgressConstants.ACTION_PROPERTY,getJobFinishedAction());
 
 		addJobLogMessage("Stoping job at "+df.format(new Date()));
-		IStatus result = getActionResultStatus();
+		final IStatus result = getActionResultStatus();
 		this.monitor = null;
 		return result;
 	}
 
-	
+
 	protected abstract  void doJob(); 
 
-	public static boolean isModal(Job job) {
-        Boolean isModal = (Boolean)job.getProperty(
-                               IProgressConstants.PROPERTY_IN_DIALOG);
-        if(isModal == null) return false;
-        return isModal.booleanValue();
-     }
+	public static boolean isModal(final Job job) {
+		final Boolean isModal = (Boolean)job.getProperty(
+				IProgressConstants.PROPERTY_IN_DIALOG);
+		if(isModal == null) {
+			return false;
+		}
+		return isModal.booleanValue();
+	}
 
 	protected IdentityVault vault;
-	private LinkedList<String> messages = new LinkedList<String>();
+	private final LinkedList<String> messages = new LinkedList<String>();
 	static final String[] readAttrs = new String[]{Const.ATTR_DIR_XML_ASSOCIATIONS};
 
 
 	@SuppressWarnings("restriction")
 	protected LDAPConnection getLDAPConnection() {
-			LDAPConnection ldapConnection;
-			try{
-				if (vault.isUseLDAPSecureChannel())
-				{
-					Security.addProvider(new Provider());
-					TrustManager[] arrayOfTrustManager = { new LDAPTrustManager() };
-					SSLContext sslContext = SSLContext.getInstance("TLS", "SunJSSE");
-					sslContext.init(null, arrayOfTrustManager, null);
-					LDAPJSSESecureSocketFactory socketFactory = new LDAPJSSESecureSocketFactory(sslContext.getSocketFactory());
-					ldapConnection = new LDAPConnection(socketFactory);
-					ldapConnection.connect(vault.getHost(), vault.getLdapSecurePort());
-				}
-				else
-				{
-					ldapConnection = new LDAPConnection();
-					ldapConnection.connect(vault.getHost(), vault.getLdapClearTextPort());
-				}
-				DSAccess access = IdmModel.getItemDSAccess(vault);
-				ldapConnection.bind(3, access.convertToLDAPAcceptableFormat(vault.getUserName()), vault.getPassword().getBytes());
-				
-			}catch (Exception e) {
-				//Log the error
-				Activator.log("Exception while getting LDAP connection:"+e.getClass()+"-"+e.getMessage(), e);
-				return null;
+		LDAPConnection ldapConnection;
+		try{
+			if (vault.isUseLDAPSecureChannel())
+			{
+				Security.addProvider(new Provider());
+				final TrustManager[] arrayOfTrustManager = { new LDAPTrustManager() };
+				final SSLContext sslContext = SSLContext.getInstance("TLS", "SunJSSE");
+				sslContext.init(null, arrayOfTrustManager, null);
+				final LDAPJSSESecureSocketFactory socketFactory = new LDAPJSSESecureSocketFactory(sslContext.getSocketFactory());
+				ldapConnection = new LDAPConnection(socketFactory);
+				ldapConnection.connect(vault.getHost(), vault.getLdapSecurePort());
 			}
-			return ldapConnection;
+			else
+			{
+				ldapConnection = new LDAPConnection();
+				ldapConnection.connect(vault.getHost(), vault.getLdapClearTextPort());
+			}
+			final DSAccess access = IdmModel.getItemDSAccess(vault);
+			ldapConnection.bind(3, access.convertToLDAPAcceptableFormat(vault.getUserName()), vault.getPassword().getBytes());
+
+		}catch (final Exception e) {
+			//Log the error
+			Activator.log("Exception while getting LDAP connection:"+e.getClass()+"-"+e.getMessage(), e);
+			return null;
 		}
+		return ldapConnection;
+	}
 	/*
 		private PagedSearchResult pagedSearch(LdapContext ldapContext) throws Exception {
 	    	PagedSearchResult result = new PagedSearchResult();
-	    	
+
 	        SearchControls searchControls = new SearchControls();
 	        searchControls.setSearchScope(SearchControls.SUBTREE_SCOPE);
 	        searchControls.setReturningAttributes(readAttrs);
 	        searchControls.setCountLimit(0);
 	        searchControls.setTimeLimit(0);
-	        
-	
+
+
 	        Control[] requestControls = new Control[]{new PagedResultsControl(pageSize, Control.CRITICAL)};
 	        ldapContext.setRequestControls(requestControls);
 	        boolean pagedSearchIssueReported = false;
-	        
+
 	        AssociationValueParser valueParser = new AssociationValueParser(driverLDAPDN);
 	        IValueFilter valueFilter = fromState.getValueFilter();
 	        String[] ldapFilters = getSplitLDAPFilter();
-	        
-	        	
+
+
 			for (int j = 0; j < ldapFilters.length; j++) {
 				String thisFilter = ldapFilters[j];
 				Activator.log("Processing filter "+(j+1)+":"+thisFilter);
@@ -248,7 +254,7 @@ public abstract class AbstarctLDAPJob extends Job {
 							result.incrementObjectCount();
 							Attributes attributeSet = searchResult.getAttributes();
 							final String objectDN = searchResult.getNameInNamespace();
-	
+
 							Attribute associations = attributeSet.get(ProcessDialog.ATTR_DIR_XML_ASSOCIATIONS);
 							NamingEnumeration<String> values = (NamingEnumeration<String>) associations.getAll();
 							AssociationValueParser.AssociationValue[] driverValues = valueFilter.getValue(values, valueParser, fromState);
@@ -280,7 +286,7 @@ public abstract class AbstarctLDAPJob extends Job {
 										"Exception during processing:" + e.getMessage()
 										+ "\nContinue with next entry.", e);
 							}
-	
+
 						}
 					}
 					Activator.log("Page returned " + pageResult.size() + " entries");

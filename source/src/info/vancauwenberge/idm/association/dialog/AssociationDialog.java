@@ -3,15 +3,11 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 package info.vancauwenberge.idm.association.dialog;
 
-import info.vancauwenberge.idm.association.Activator;
-import info.vancauwenberge.idm.association.actions.api.IValueFilter;
-import info.vancauwenberge.idm.association.actions.valuefilter.DriverDNValueFilter;
-import info.vancauwenberge.idm.association.actions.valuefilter.NullValueFilter;
-
 import java.io.File;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -35,13 +31,21 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 
+import com.novell.admin.ns.AdminNamespace;
+import com.novell.admin.ns.nds.NDSNamespace;
 import com.novell.application.console.snapin.ObjectEntry;
+import com.novell.core.Core;
 import com.novell.core.datatools.access.nds.DSUtil;
 import com.novell.core.datatools.edirbrowser.EDirBrowser;
 import com.novell.core.datatools.edirbrowser.internal.model.EdirInfo;
 import com.novell.idm.IdmModel;
 import com.novell.idm.model.Driver;
 import com.novell.idm.model.IdentityVault;
+
+import info.vancauwenberge.idm.association.Activator;
+import info.vancauwenberge.idm.association.actions.api.IValueFilter;
+import info.vancauwenberge.idm.association.actions.valuefilter.DriverDNValueFilter;
+import info.vancauwenberge.idm.association.actions.valuefilter.NullValueFilter;
 
 public class AssociationDialog extends TitleAreaDialog {
 	private static final String TOKEN_DRIVER_NAME = "{$driverName}";
@@ -57,14 +61,14 @@ public class AssociationDialog extends TitleAreaDialog {
 	private interface DisplayLabel{
 		public String getDisplayLabel();
 	}
-	
+
 	public enum Operations implements DisplayLabel{
 		EXPORT("Export Associations"),
 		IMPORT("Import Associations"),
 		MODIFY ("Modify Associations");
 		private String label;
 
-		Operations(String label){
+		Operations(final String label){
 			this.label = label;
 		}
 
@@ -73,7 +77,7 @@ public class AssociationDialog extends TitleAreaDialog {
 			return label;
 		}
 	}
-	
+
 	public static final IValueFilter nullValueFilter = new NullValueFilter();
 
 	public enum FromAssociationState implements DisplayLabel{
@@ -90,18 +94,20 @@ public class AssociationDialog extends TitleAreaDialog {
 		private String label;
 		private IValueFilter valueFilter;
 
-		FromAssociationState(String label, long state, IValueFilter valueFilter){
+		FromAssociationState(final String label, final long state, final IValueFilter valueFilter){
 			this.state = state;
-			if (state != -1 && (state != 4278190086L))
+			if ((state != -1) && (state != 4278190086L)) {
 				this.label = state + " - " + label;
-			else
+			} else {
 				this.label = label;
+			}
 			this.valueFilter =  valueFilter;
 			if (valueFilter instanceof DriverDNValueFilter){
 				((DriverDNValueFilter)valueFilter).setAssociationState(this);
 			}
 		}
-		
+
+		@Override
 		public String getDisplayLabel(){
 			return label;
 		}
@@ -113,7 +119,7 @@ public class AssociationDialog extends TitleAreaDialog {
 		public IValueFilter getValueFilter() {
 			return valueFilter;
 		}
-		
+
 	}
 
 	public enum ToAssociationState implements DisplayLabel{
@@ -127,14 +133,16 @@ public class AssociationDialog extends TitleAreaDialog {
 		private long state;
 		private String label;
 
-		ToAssociationState(String label, long state){
+		ToAssociationState(final String label, final long state){
 			this.state = state;
-			if (state != -1 && (state != 4278190086L))
+			if ((state != -1) && (state != 4278190086L)) {
 				this.label = state + " - " + label;
-			else
+			} else {
 				this.label = label;
+			}
 		}
-		
+
+		@Override
 		public String getDisplayLabel(){
 			return label;
 		}
@@ -142,115 +150,143 @@ public class AssociationDialog extends TitleAreaDialog {
 		public long getState() {
 			return state;
 		}
-		
+
 	}
-	
+
 	private class SelectionValidator implements SelectionListener, KeyListener{
 
 		private void togleAndValidate(){
 			AssociationDialog.this.setWidgetVisibility();
-			List<String> errors = AssociationDialog.this.getValidationErrors();
-			if (errors.size()==0)
+			final List<String> errors = AssociationDialog.this.getValidationErrors();
+			if (errors.size()==0) {
 				AssociationDialog.this.setErrorMessage(null);
-			else{
-				for (Iterator<String> iterator = errors.iterator(); iterator.hasNext();) {
-					String string = (String) iterator.next();
+			} else{
+				for (final String string2 : errors) {
+					final String string = string2;
 					AssociationDialog.this.setErrorMessage(string);
 				}
 			}
 		}
 		@Override
-		public void widgetSelected(SelectionEvent e) {
+		public void widgetSelected(final SelectionEvent e) {
 			togleAndValidate();
 			if (e.getSource()==ldapSearchBaseButton){
-				IdentityVault identityVault = IdmModel.getIdentityVaultFromItem(targetDriver);
-				String searchContext = (selectedSearchRoot==null)?"": DSUtil.getDNFromOE(selectedSearchRoot.getParent());
-				EDirBrowser browser = new EDirBrowser(identityVault, null, searchContext, true);
+				final IdentityVault identityVault = IdmModel.getIdentityVaultFromItem(targetDriver);
+				final String searchContext = (selectedSearchRoot==null)?"": DSUtil.getDNFromOE(selectedSearchRoot.getParent());
+				final EDirBrowser browser = new EDirBrowser(identityVault, null, searchContext, true);
 				browser.allowMultipleSelect(false);
 				browser.setDescriptionLabel("Select the search root for the association modifier.");
 				browser.removeIVConnectMenuOption();
 				browser.open();
-				
-				String result = browser.getSelectedObject();
-				if (result != null && !"".equals(result)){
+
+				final String result = browser.getSelectedObject();
+				if ((result != null) && !"".equals(result)){
 					ldapSearchBaseText.setText(result);
-					EdirInfo edirinfo = new EdirInfo(browser.internalGetNamespace());
+					//IDM 4.6
+					//We cannot compile against LDAP and NDS. Do via reflection for now
+					final AdminNamespace ns;
+					try{
+						final Method method = browser.getClass().getDeclaredMethod("internalGetNamespace");
+						ns = (AdminNamespace) method.invoke(browser);
+					}catch(final Exception e3){
+						Activator.log("Unable to find Admin or NDS namespace.", e3);
+						Core.errorDlg("Unable to find Admin or NDS namespace.", e3);
+						return;
+					}
+					//final AdminNamespace ns = browser.internalGetNamespace();
+					EdirInfo edirinfo =null;
+					//IDM 4.6
+					//We cannot compile against LDAP and NDS. Do via reflection for now
+					try {
+						final Constructor<EdirInfo> cons = EdirInfo.class.getDeclaredConstructor(AdminNamespace.class);
+						edirinfo = cons.newInstance(ns);
+					} catch (final Exception e1) {
+						try{
+							final Constructor<EdirInfo> cons = EdirInfo.class.getDeclaredConstructor(NDSNamespace.class);
+							edirinfo = cons.newInstance((NDSNamespace)ns);
+						}catch(final Exception e2){
+							Core.errorDlg("Unable to find LDAP or NDS constrcutor.", e2);
+							Activator.log("Unable to find LDAP or NDS constrcutor.", e2);
+							Activator.log("Unable to find LDAP or NDS constrcutor.", e1);
+							return;
+						}
+					}
 					selectedSearchRoot = edirinfo.getObjEntry(result);
 					togleAndValidate();
 				}				
 			}else
-			if (e.getSource()==fileButton){
-				FileDialog fd = null;
-				if (fetchSelectedOperation()==Operations.EXPORT){
-					fd = new FileDialog(getShell(), SWT.SAVE);
-					fd.setText("Export file");
-					fd.setOverwrite(true);
-				}else{
-					fd = new FileDialog(getShell(), SWT.OPEN);
-					fd.setText("Import file");
-				}
-		        //fd.setFilterPath("C:/");
-		        String[] filterExt = { "*.csv", "*.txt", ".tsv", "*.*" };
-		        fd.setFilterExtensions(filterExt);
-		        String selected = fd.open();
-
-		        if (selected != null){
-		        	fileText.setText(selected);
-					if (logfileText.getText().equals("")){
-						logfileText.setText(selected+".log");
+				if (e.getSource()==fileButton){
+					FileDialog fd = null;
+					if (fetchSelectedOperation()==Operations.EXPORT){
+						fd = new FileDialog(getShell(), SWT.SAVE);
+						fd.setText("Export file");
+						fd.setOverwrite(true);
+					}else{
+						fd = new FileDialog(getShell(), SWT.OPEN);
+						fd.setText("Import file");
 					}
-					togleAndValidate();
-		        }
-		      }else
-		    	  if (e.getSource()==logfileButton){
-		    		  FileDialog fd = null;
-	    			  fd = new FileDialog(getShell(), SWT.SAVE);
-	    			  fd.setText("Log file");
-	    			  fd.setOverwrite(true);
-		    		  //fd.setFilterPath("C:/");
-		    		  String[] filterExt = { "*.log","*.csv", "*.txt", ".tsv", "*.*" };
-		    		  fd.setFilterExtensions(filterExt);
-		    		  String selected = fd.open();
-		    		  if (selected != null){
-	    				  logfileText.setText(selected+".log");
-		    			  togleAndValidate();
-		    		  }
-			      }else
-			    	  if (e.getSource()==testImportButton){
-		    			  togleAndValidate();
-			    	  }
-			}
+					//fd.setFilterPath("C:/");
+					final String[] filterExt = { "*.csv", "*.txt", ".tsv", "*.*" };
+					fd.setFilterExtensions(filterExt);
+					final String selected = fd.open();
+
+					if (selected != null){
+						fileText.setText(selected);
+						if (logfileText.getText().equals("")){
+							logfileText.setText(selected+".log");
+						}
+						togleAndValidate();
+					}
+				}else
+					if (e.getSource()==logfileButton){
+						FileDialog fd = null;
+						fd = new FileDialog(getShell(), SWT.SAVE);
+						fd.setText("Log file");
+						fd.setOverwrite(true);
+						//fd.setFilterPath("C:/");
+						final String[] filterExt = { "*.log","*.csv", "*.txt", ".tsv", "*.*" };
+						fd.setFilterExtensions(filterExt);
+						final String selected = fd.open();
+						if (selected != null){
+							logfileText.setText(selected+".log");
+							togleAndValidate();
+						}
+					}else
+						if (e.getSource()==testImportButton){
+							togleAndValidate();
+						}
+		}
 
 		@Override
-		public void widgetDefaultSelected(SelectionEvent e) {
+		public void widgetDefaultSelected(final SelectionEvent e) {
 			togleAndValidate();
 		}
 
 		@Override
-		public void keyPressed(KeyEvent e) {
+		public void keyPressed(final KeyEvent e) {
 			togleAndValidate();
 		}
 
 		@Override
-		public void keyReleased(KeyEvent e) {
+		public void keyReleased(final KeyEvent e) {
 			togleAndValidate();
 		}
-		
+
 	}
-	private SelectionValidator singleValidator = new SelectionValidator();
+	private final SelectionValidator singleValidator = new SelectionValidator();
 	private Text ldapFilterText;
 	private ObjectEntry selectedSearchRoot=null;
 
 	//private Text lastNameText;
 	private String selectedLDAPFilter;
-	private Driver targetDriver;
+	private final Driver targetDriver;
 	private Combo fromStateCombo;
 	private Combo toStateCombo;
 	private Combo operationTypeCombo;
-	
-	private Map<String,Object> fromStateMap = new HashMap<String, Object>();
-	private Map<String,Object> toStateMap = new HashMap<String, Object>();
-	private Map<String,Object> operationStateMap = new HashMap<String, Object>();
+
+	private final Map<String,Object> fromStateMap = new HashMap<String, Object>();
+	private final Map<String,Object> toStateMap = new HashMap<String, Object>();
+	private final Map<String,Object> operationStateMap = new HashMap<String, Object>();
 	private Label fromStateLabel;
 	private Label toStateLabel;
 	private Label testImportLabel;
@@ -276,22 +312,22 @@ public class AssociationDialog extends TitleAreaDialog {
 		return selectedLogFile;
 	}
 
-	public AssociationDialog(Shell parentShell, Driver targetDriver) {
+	public AssociationDialog(final Shell parentShell, final Driver targetDriver) {
 		super(parentShell);
 		this.targetDriver = targetDriver;
 		setHelpAvailable(false);
 		open();
 	}
-	
+
 	private void savePluginSettings() {
-		Properties props = Activator.getProperties();
+		final Properties props = Activator.getProperties();
 		props.put(PROP_ASSICIATIONDIALOG_OPERATION, operationTypeCombo.getText());
 
 		props.put(PROP_ASSICIATIONDIALOG_FILTER, ldapFilterText.getText());
 		String value = fileText.getText();
 		value = value.replace(targetDriver.getName(), TOKEN_DRIVER_NAME);
 
-		
+
 		props.put(PROP_ASSICIATIONDIALOG_FILE, value);
 		props.put(PROP_ASSICIATIONDIALOG_IS_TEST, Boolean.toString(testImportButton.getSelection()));
 		value = logfileText.getText();
@@ -302,42 +338,48 @@ public class AssociationDialog extends TitleAreaDialog {
 		props.put(PROP_ASSICIATIONDIALOG_TO_STATE, toStateCombo.getText());
 		props.put(PROP_ASSICIATIONDIALOG_SEARCH_BASE, ldapSearchBaseText.getText());		
 		Activator.storeProperties(props);
-	  }
+	}
 
 
 	private void loadPluginSettings() {
 		String value=null;
-		Properties props = Activator.getProperties();
+		final Properties props = Activator.getProperties();
 		value = (String) props.get(PROP_ASSICIATIONDIALOG_OPERATION);
 		//
-		if (value != null)
+		if (value != null) {
 			operationTypeCombo.setText(value);
+		}
 
 		value = (String) props.get(PROP_ASSICIATIONDIALOG_FILTER);
-		if (value != null)
+		if (value != null) {
 			ldapFilterText.setText(value);
+		}
 		value = (String) props.get(PROP_ASSICIATIONDIALOG_FILE);
 		if (value != null){
 			value = value.replace(TOKEN_DRIVER_NAME, targetDriver.getName());
 			fileText.setText(value);
 		}
 		value = (String) props.get(PROP_ASSICIATIONDIALOG_IS_TEST);
-		if (value != null)
+		if (value != null) {
 			testImportButton.setSelection(Boolean.parseBoolean(value));
+		}
 		value = (String) props.get(PROP_ASSICIATIONDIALOG_LOG_FILE);
 		if (value != null){
 			value = value.replace(TOKEN_DRIVER_NAME, targetDriver.getName());
 			logfileText.setText(value);
 		}
 		value = (String) props.get(PROP_ASSICIATIONDIALOG_FROM_STATE);
-		if (value != null)
+		if (value != null) {
 			fromStateCombo.setText(value);
+		}
 		value = (String) props.get(PROP_ASSICIATIONDIALOG_TO_STATE);
-		if (value != null)
+		if (value != null) {
 			toStateCombo.setText(value);
+		}
 		value = (String) props.get(PROP_ASSICIATIONDIALOG_SEARCH_BASE);
-		if (value != null)
-			ldapSearchBaseText.setText(value);		
+		if (value != null) {
+			ldapSearchBaseText.setText(value);
+		}		
 	}
 
 
@@ -352,14 +394,14 @@ public class AssociationDialog extends TitleAreaDialog {
 	}
 
 	@Override
-	protected Control createDialogArea(Composite parent) {
-		GridLayout layout = new GridLayout();
+	protected Control createDialogArea(final Composite parent) {
+		final GridLayout layout = new GridLayout();
 		layout.numColumns = 3;
 		// layout.horizontalAlignment = GridData.FILL;
 		parent.setLayout(layout);
-		
+
 		//Operation type
-		Label operationLabel = new Label(parent, SWT.NONE);
+		final Label operationLabel = new Label(parent, SWT.NONE);
 		operationLabel.setText("Operation type");
 		// You should not re-use GridData
 		GridData gridData = new GridData();
@@ -367,12 +409,12 @@ public class AssociationDialog extends TitleAreaDialog {
 		gridData.horizontalAlignment = GridData.FILL;
 		gridData.horizontalSpan = 2;
 		operationTypeCombo = new Combo(parent, SWT.READ_ONLY);
-		
+
 		addSelections(operationTypeCombo, getOperationList(),operationStateMap);
 		operationTypeCombo.setLayoutData(gridData);
 		operationTypeCombo.addSelectionListener(singleValidator);
 		operationTypeCombo.setToolTipText("Select the operation:\nModify: do a live modify of the association states\nExport: Export the associations to a CSV file\nImport: Import associations from a CSV file");
-		
+
 
 		//Search base selector
 		gridData = new GridData();
@@ -388,14 +430,14 @@ public class AssociationDialog extends TitleAreaDialog {
 		ldapSearchBaseText.setLayoutData(gridData);
 		ldapSearchBaseText.setToolTipText("Search base for the objects");
 		ldapSearchBaseText.addKeyListener(singleValidator);
-		
+
 		gridData = new GridData();
-	    ldapSearchBaseButton = new Button(parent, 8);
-	    ldapSearchBaseButton.setText("Browse...");
-	    ldapSearchBaseButton.setToolTipText("Browse for the search root");
-	    ldapSearchBaseButton.addSelectionListener(singleValidator);
-	    ldapSearchBaseButton.setFocus();
-	    ldapSearchBaseButton.setLayoutData(gridData);
+		ldapSearchBaseButton = new Button(parent, 8);
+		ldapSearchBaseButton.setText("Browse...");
+		ldapSearchBaseButton.setToolTipText("Browse for the search root");
+		ldapSearchBaseButton.addSelectionListener(singleValidator);
+		ldapSearchBaseButton.setFocus();
+		ldapSearchBaseButton.setLayoutData(gridData);
 
 
 		gridData = new GridData();
@@ -403,7 +445,7 @@ public class AssociationDialog extends TitleAreaDialog {
 		ldapFilterLabel.setText("LDAP object filter");
 		ldapFilterLabel.setToolTipText("LDAP filter that will restrict the operation to a set of objects.");
 		ldapFilterLabel.setLayoutData(gridData);
-		
+
 		// The text fields will grow with the size of the dialog
 		gridData = new GridData();
 		gridData.grabExcessHorizontalSpace = true;
@@ -414,7 +456,7 @@ public class AssociationDialog extends TitleAreaDialog {
 		ldapFilterText.setText("objectclass=*");
 		ldapFilterText.setToolTipText("LDAP filter that will restrict the operation to a set of objects.");
 		ldapFilterText.addKeyListener(singleValidator);
-		
+
 		//From association status
 		// You should not re-use GridData
 		gridData = new GridData();
@@ -427,7 +469,7 @@ public class AssociationDialog extends TitleAreaDialog {
 		gridData.horizontalAlignment = GridData.FILL;
 		gridData.horizontalSpan = 2;
 		fromStateCombo = new Combo(parent, SWT.READ_ONLY);
-		
+
 		addSelections(fromStateCombo, getFromStateList(), fromStateMap);
 		fromStateCombo.setLayoutData(gridData);
 		fromStateCombo.addSelectionListener(singleValidator);
@@ -440,7 +482,7 @@ public class AssociationDialog extends TitleAreaDialog {
 		toStateLabel = new Label(parent, SWT.NONE);
 		toStateLabel.setText("Modify association status to:");
 		toStateLabel.setLayoutData(gridData);
-		
+
 		// You should not re-use GridData
 		gridData = new GridData();
 		gridData.grabExcessHorizontalSpace = true;
@@ -451,8 +493,8 @@ public class AssociationDialog extends TitleAreaDialog {
 		toStateCombo.setLayoutData(gridData);
 		toStateCombo.addSelectionListener(singleValidator);
 		toStateCombo.setToolTipText("Select the new state of the associations found");
-		
-		
+
+
 		//File browser
 		// You should not re-use GridData
 		gridData = new GridData();
@@ -475,7 +517,7 @@ public class AssociationDialog extends TitleAreaDialog {
 		fileButton.setToolTipText("Browse for a file");
 		fileButton.addSelectionListener(singleValidator);
 		fileButton.setLayoutData(gridData);
-		
+
 		//Test import checkbox
 		gridData = new GridData();
 		testImportLabel = new Label(parent, SWT.NONE);
@@ -511,32 +553,33 @@ public class AssociationDialog extends TitleAreaDialog {
 		logfileButton.setToolTipText("Browse for a file");
 		logfileButton.addSelectionListener(singleValidator);
 		logfileButton.setLayoutData(gridData);
-		
+
 		//Load previous data
 		loadPluginSettings();
-		
+
 		return parent;
 	}
-	
+
+	@Override
 	public int open(){
 		return super.open();
 	}
 
 	private DisplayLabel[] getOperationList() {
-		Operations[] assocationStates = Operations.values();
-		DisplayLabel[] languages = new DisplayLabel[assocationStates.length];
+		final Operations[] assocationStates = Operations.values();
+		final DisplayLabel[] languages = new DisplayLabel[assocationStates.length];
 		for (int j = 0; j < assocationStates.length; j++) {
-			Operations associationState = assocationStates[j];
+			final Operations associationState = assocationStates[j];
 			languages[j]= associationState;			
 		}
-	    return languages;
+		return languages;
 	}
 
-	private void addSelections(Combo fromState, DisplayLabel[] fromSelection, Map<String, Object> map) {
-		String[] values = new String[fromSelection.length];
+	private void addSelections(final Combo fromState, final DisplayLabel[] fromSelection, final Map<String, Object> map) {
+		final String[] values = new String[fromSelection.length];
 		for (int i = 0; i < fromSelection.length; i++) {
-			DisplayLabel displayLabel = fromSelection[i];
-			String label = displayLabel.getDisplayLabel();
+			final DisplayLabel displayLabel = fromSelection[i];
+			final String label = displayLabel.getDisplayLabel();
 			values[i] = label;
 			map.put(label, displayLabel);
 		}
@@ -546,28 +589,28 @@ public class AssociationDialog extends TitleAreaDialog {
 	}
 
 	private DisplayLabel[] getFromStateList() {
-		FromAssociationState[] assocationStates = FromAssociationState.values();
-		DisplayLabel[] languages = new DisplayLabel[assocationStates.length];
+		final FromAssociationState[] assocationStates = FromAssociationState.values();
+		final DisplayLabel[] languages = new DisplayLabel[assocationStates.length];
 		for (int j = 0; j < assocationStates.length; j++) {
-			FromAssociationState associationState = assocationStates[j];
+			final FromAssociationState associationState = assocationStates[j];
 			languages[j]= associationState;			
 		}
-	    return languages;
+		return languages;
 	}
 
 	private DisplayLabel[] getToStateList() {
-		ToAssociationState[] assocationStates = ToAssociationState.values();
-		DisplayLabel[] languages = new DisplayLabel[assocationStates.length];
+		final ToAssociationState[] assocationStates = ToAssociationState.values();
+		final DisplayLabel[] languages = new DisplayLabel[assocationStates.length];
 		for (int j = 0; j < assocationStates.length; j++) {
-			ToAssociationState associationState = assocationStates[j];
+			final ToAssociationState associationState = assocationStates[j];
 			languages[j]= associationState;			
 		}
-	    return languages;
+		return languages;
 	}
 
 	@Override
-	protected void createButtonsForButtonBar(Composite parent) {
-		GridData gridData = new GridData();
+	protected void createButtonsForButtonBar(final Composite parent) {
+		final GridData gridData = new GridData();
 		gridData.verticalAlignment = GridData.FILL;
 		gridData.horizontalSpan = 3;
 		gridData.grabExcessHorizontalSpace = true;
@@ -576,9 +619,9 @@ public class AssociationDialog extends TitleAreaDialog {
 
 		parent.setLayoutData(gridData);
 		// Create Start button
-		Button startButton = createButton(parent, OK, "Start", true);
+		final Button startButton = createButton(parent, OK, "Start", true);
 		// Create Cancel button
-		Button cancelButton = createButton(parent, CANCEL, "Cancel", false);
+		final Button cancelButton = createButton(parent, CANCEL, "Cancel", false);
 		setWidgetVisibility();
 	}
 
@@ -595,10 +638,10 @@ public class AssociationDialog extends TitleAreaDialog {
 	}
 
 	private void setWidgetVisibility(){
-		List<String> errors = getValidationErrors();
+		final List<String> errors = getValidationErrors();
 		getButton(OK).setEnabled(errors.size()==0);
-		
-		Operations selectedItem = fetchSelectedOperation();
+
+		final Operations selectedItem = fetchSelectedOperation();
 		switch (selectedItem) {
 		case MODIFY:
 			//Perform a modify: show the to state
@@ -673,19 +716,19 @@ public class AssociationDialog extends TitleAreaDialog {
 		}
 		toStateLabel.getParent().layout(false);
 	}
-	
-	private void hide(Control aControl) {
+
+	private void hide(final Control aControl) {
 		aControl.setVisible(false);
 		((GridData)aControl.getLayoutData()).exclude=true;
 	}
 
-	private void show(Control aControl) {
+	private void show(final Control aControl) {
 		aControl.setVisible(true);
 		((GridData)aControl.getLayoutData()).exclude=false;
 	}
 
 	private List<String> getValidationErrors(){
-		List<String> result = new java.util.LinkedList<String>();
+		final List<String> result = new java.util.LinkedList<String>();
 		switch (fetchSelectedOperation()) {
 		case EXPORT:
 			if (ldapFilterText.getText().length() == 0) {
@@ -693,8 +736,8 @@ public class AssociationDialog extends TitleAreaDialog {
 			}else{
 				//Validate the ldap filter
 				try{
-					com.novell.ldap.rfc2251.RfcFilter ldapFilter = new com.novell.ldap.rfc2251.RfcFilter(ldapFilterText.getText());
-				}catch (Exception e) {
+					final com.novell.ldap.rfc2251.RfcFilter ldapFilter = new com.novell.ldap.rfc2251.RfcFilter(ldapFilterText.getText());
+				}catch (final Exception e) {
 					result.add("Invalid LDAP filter.");
 				}
 			}
@@ -708,18 +751,21 @@ public class AssociationDialog extends TitleAreaDialog {
 			try {
 				selectedSearchRoot = DSUtil.getOEFromDN(IdmModel.getIdentityVaultFromItem(targetDriver).getDSAccess(), 
 						ldapSearchBaseText.getText());
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				result.add("Invalid search base:."+ldapSearchBaseText.getText());			
 			}
 
-			if (fileText.getText().length()==0)
-				result.add("Please specify a file.");			
+			if (fileText.getText().length()==0) {
+				result.add("Please specify a file.");
+			}			
 			break;
 		case IMPORT:
-			if (fileText.getText().length()==0)
-				result.add("Please specify a file.");			
-			if (testImportButton.getSelection() && logfileText.getText().length()==0)
-				result.add("Please specify a log file.");			
+			if (fileText.getText().length()==0) {
+				result.add("Please specify a file.");
+			}			
+			if (testImportButton.getSelection() && (logfileText.getText().length()==0)) {
+				result.add("Please specify a log file.");
+			}			
 			break;
 		case MODIFY:
 			if (ldapFilterText.getText().length() == 0) {
@@ -727,8 +773,8 @@ public class AssociationDialog extends TitleAreaDialog {
 			}else{
 				//Validate the ldap filter
 				try{
-					com.novell.ldap.rfc2251.RfcFilter ldapFilter = new com.novell.ldap.rfc2251.RfcFilter(ldapFilterText.getText());
-				}catch (Exception e) {
+					final com.novell.ldap.rfc2251.RfcFilter ldapFilter = new com.novell.ldap.rfc2251.RfcFilter(ldapFilterText.getText());
+				}catch (final Exception e) {
 					result.add("Invalid LDAP filter.");
 				}
 			}
@@ -741,7 +787,7 @@ public class AssociationDialog extends TitleAreaDialog {
 			try {
 				selectedSearchRoot = DSUtil.getOEFromDN(IdmModel.getIdentityVaultFromItem(targetDriver).getDSAccess(), 
 						ldapSearchBaseText.getText());
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				result.add("Invalid search base:."+ldapSearchBaseText.getText());			
 			}
 			if (toStateCombo.getText().length() == 0){
@@ -749,16 +795,16 @@ public class AssociationDialog extends TitleAreaDialog {
 			}
 			break;
 		}
-		
+
 		return result;		
 	}
-	
+
 	@Override
 	protected boolean isResizable() {
 		return true;
 	}
-	
-	
+
+
 
 	// We need to have the textFields into Strings because the UI gets disposed
 	// and the Text Fields are not accessible any more.
@@ -773,8 +819,8 @@ public class AssociationDialog extends TitleAreaDialog {
 		try {
 			selectedSearchRoot = DSUtil.getOEFromDN(IdmModel.getIdentityVaultFromItem(targetDriver).getDSAccess(), 
 					ldapSearchBaseText.getText());
-		} catch (Exception e) {
-			e.printStackTrace();
+		} catch (final Exception e) {
+			Activator.log("Failed to save the input.",e);
 		}
 	}
 
@@ -786,15 +832,17 @@ public class AssociationDialog extends TitleAreaDialog {
 			switch (selectedOperation) {
 			case MODIFY:
 				//Ask additional confirmation when modifying associations
-				if (MessageDialog.openConfirm(getShell(), "Confirm Association Modification", "Are you sure you want to modify the associations for this driver?"))
+				if (MessageDialog.openConfirm(getShell(), "Confirm Association Modification", "Are you sure you want to modify the associations for this driver?")) {
 					super.okPressed();
+				}
 				break;
 			case IMPORT:
 				//Ask additional confirmation when modifying associations (unless it's only a test)
-				if (isTestOnly)
+				if (isTestOnly) {
 					super.okPressed();
-				else if (MessageDialog.openConfirm(getShell(), "Confirm Association Modification", "Current driver associations for the objects imported will be overwritten. Are you sure?"))
+				} else if (MessageDialog.openConfirm(getShell(), "Confirm Association Modification", "Current driver associations for the objects imported will be overwritten. Are you sure?")) {
 					super.okPressed();
+				}
 				break;
 			default:
 				super.okPressed();
@@ -837,4 +885,3 @@ public class AssociationDialog extends TitleAreaDialog {
 
 }
 
-			

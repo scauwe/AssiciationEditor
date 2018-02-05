@@ -2,31 +2,21 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: AssociationEditor
 Bundle-SymbolicName: info.vancauwenberge.idm.association;singleton:=true
-Bundle-Version: 0.3.1
+Bundle-Version: 0.3.1.qualifier
 Bundle-Activator: info.vancauwenberge.idm.association.Activator
-Eclipse-AutoStart: true
-Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Bundle-Vendor: SVC
-Require-Bundle: 
- org.eclipse.ui,
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Import-Package: org.osgi.framework
+Bundle-ActivationPolicy: lazy
+Require-Bundle: org.eclipse.ui,
  org.eclipse.emf.ecore,
- org.eclipse.emf.common,
  org.eclipse.emf.ecore.edit,
- org.eclipse.swt,
  org.eclipse.core.runtime,
  com.novell.core,
  com.novell.core.datatools,
  com.novell.core.jars,
- com.novell.idm,
  com.novell.designer.model,
- com.novell.idm.deploy
-Import-Package: 
- com.novell.application.console.consolesnapins,
  com.novell.idm,
- com.novell.idm.model,
- org.eclipse.emf.common.util,
- org.eclipse.jface.viewers,
- org.osgi.framework
-Bundle-ActivationPolicy: lazy
+ com.novell.idm.deploy
 Bundle-ClassPath: lib/opencsv-2.3.jar,
  .
