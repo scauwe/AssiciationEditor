@@ -39,6 +39,7 @@ import info.vancauwenberge.idm.association.Activator;
 import info.vancauwenberge.idm.association.dialog.AssociationDialog;
 import info.vancauwenberge.idm.association.dialog.AssociationDialog.FromAssociationState;
 import info.vancauwenberge.idm.association.dialog.AssociationDialog.Operations;
+import info.vancauwenberge.idm.association.dialog.AssociationDialog.SearchScope;
 import info.vancauwenberge.idm.association.dialog.AssociationDialog.ToAssociationState;
 import info.vancauwenberge.idm.association.dialog.SelectDriverDialog;
 import info.vancauwenberge.idm.association.dialog.SelectDriverDialog.SelectionType;
@@ -116,6 +117,7 @@ public class AssociationAction implements IWorkbenchWindowActionDelegate {
 					try {
 						process(targetDriver, operation, 
 								dialog.getSelectedSearchRoot(), 
+								dialog.getSelectedSearchScope(), 
 								dialog.getSelectedLDAPFilter(), 
 								dialog.getSelectedFromState(), 
 								dialog.getSelectedToState(), 
@@ -134,7 +136,7 @@ public class AssociationAction implements IWorkbenchWindowActionDelegate {
 	}
 
 	private void process(final Driver targetDriver, final Operations operation,
-			final ObjectEntry searchRoot, final String filter,
+			final ObjectEntry searchRoot, final SearchScope searchScope, final String filter,
 			final FromAssociationState fromState, final ToAssociationState toState, final String fileName, final boolean isTestOnly, final String logFile) {
 		final IdentityVault vault= IdmModel.getIdentityVault(targetDriver);
 
@@ -147,16 +149,16 @@ public class AssociationAction implements IWorkbenchWindowActionDelegate {
 			try{
 				switch (operation) {
 				case EXPORT:
-					processingJob = new ExportProcessingJob(vault, driverLDAPDN,filter,fromState,searchRootLDAP,fileName);			
+					processingJob = new ExportProcessingJob(vault, driverLDAPDN,filter,fromState,searchRootLDAP,searchScope, fileName);			
 					break;
 				case MODIFY:
-					processingJob = new ModifyProcessingJob(vault, driverLDAPDN,filter,fromState,searchRootLDAP,toState, logFile);			
+					processingJob = new ModifyProcessingJob(vault, driverLDAPDN,filter,fromState,searchRootLDAP,searchScope, toState, logFile);			
 					break;
 				case IMPORT:
 					processingJob = new ImportAssociationsJob(vault, driverLDAPDN, fileName, isTestOnly, logFile);
 					break;
 				default:
-					processingJob = new ExportProcessingJob(vault, driverLDAPDN,filter,fromState,searchRootLDAP, fileName);
+					processingJob = new ExportProcessingJob(vault, driverLDAPDN,filter,fromState,searchRootLDAP, searchScope, fileName);
 					break;
 				}
 				processingJob.setUser(true);

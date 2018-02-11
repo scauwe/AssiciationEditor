@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.naming.directory.SearchControls;
+
 import org.eclipse.jface.dialogs.IMessageProvider;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
@@ -49,6 +51,7 @@ import info.vancauwenberge.idm.association.actions.valuefilter.NullValueFilter;
 
 public class AssociationDialog extends TitleAreaDialog {
 	private static final String TOKEN_DRIVER_NAME = "{$driverName}";
+	private static final String PROP_ASSICIATIONDIALOG_SEARCH_SCOPE = "assiciationdialog.searchScope";
 	private static final String PROP_ASSICIATIONDIALOG_SEARCH_BASE = "assiciationdialog.searchBase";
 	private static final String PROP_ASSICIATIONDIALOG_TO_STATE = "assiciationdialog.toState";
 	private static final String PROP_ASSICIATIONDIALOG_FROM_STATE = "assiciationdialog.fromState";
@@ -57,6 +60,21 @@ public class AssociationDialog extends TitleAreaDialog {
 	private static final String PROP_ASSICIATIONDIALOG_FILE = "assiciationdialog.file";
 	private static final String PROP_ASSICIATIONDIALOG_FILTER = "assiciationdialog.filter";
 	private static final String PROP_ASSICIATIONDIALOG_OPERATION = "assiciationdialog.operation";
+
+	public enum SearchScope{
+		OBJECT(SearchControls.OBJECT_SCOPE),
+		ONELEVEL(SearchControls.ONELEVEL_SCOPE),
+		SUBTREE(SearchControls.SUBTREE_SCOPE);
+		private int value;
+
+		SearchScope(final int value){
+			this.value = value;
+		}
+
+		public int getSearchControl(){
+			return value;
+		}
+	}
 
 	private interface DisplayLabel{
 		public String getDisplayLabel();
@@ -214,47 +232,54 @@ public class AssociationDialog extends TitleAreaDialog {
 					selectedSearchRoot = edirinfo.getObjEntry(result);
 					togleAndValidate();
 				}				
-			}else
-				if (e.getSource()==fileButton){
-					FileDialog fd = null;
-					if (fetchSelectedOperation()==Operations.EXPORT){
-						fd = new FileDialog(getShell(), SWT.SAVE);
-						fd.setText("Export file");
-						fd.setOverwrite(true);
-					}else{
-						fd = new FileDialog(getShell(), SWT.OPEN);
-						fd.setText("Import file");
-					}
-					//fd.setFilterPath("C:/");
-					final String[] filterExt = { "*.csv", "*.txt", ".tsv", "*.*" };
-					fd.setFilterExtensions(filterExt);
-					final String selected = fd.open();
+			}else if (e.getSource()==fileButton){
+				FileDialog fd = null;
+				if (fetchSelectedOperation()==Operations.EXPORT){
+					fd = new FileDialog(getShell(), SWT.SAVE);
+					fd.setText("Export file");
+					fd.setOverwrite(true);
+				}else{
+					fd = new FileDialog(getShell(), SWT.OPEN);
+					fd.setText("Import file");
+				}
+				//fd.setFilterPath("C:/");
+				final String[] filterExt = { "*.csv", "*.txt", ".tsv", "*.*" };
+				fd.setFilterExtensions(filterExt);
+				final String selected = fd.open();
 
-					if (selected != null){
-						fileText.setText(selected);
-						if (logfileText.getText().equals("")){
-							logfileText.setText(selected+".log");
-						}
-						togleAndValidate();
+				if (selected != null){
+					fileText.setText(selected);
+					if (logfileText.getText().equals("")){
+						logfileText.setText(selected+".log");
 					}
-				}else
-					if (e.getSource()==logfileButton){
-						FileDialog fd = null;
-						fd = new FileDialog(getShell(), SWT.SAVE);
-						fd.setText("Log file");
-						fd.setOverwrite(true);
-						//fd.setFilterPath("C:/");
-						final String[] filterExt = { "*.log","*.csv", "*.txt", ".tsv", "*.*" };
-						fd.setFilterExtensions(filterExt);
-						final String selected = fd.open();
-						if (selected != null){
-							logfileText.setText(selected+".log");
-							togleAndValidate();
-						}
-					}else
-						if (e.getSource()==testImportButton){
-							togleAndValidate();
-						}
+					togleAndValidate();
+				}
+			}else if (e.getSource()==logfileButton){
+				FileDialog fd = null;
+				fd = new FileDialog(getShell(), SWT.SAVE);
+				fd.setText("Log file");
+				fd.setOverwrite(true);
+				//fd.setFilterPath("C:/");
+				final String[] filterExt = { "*.log","*.csv", "*.txt", ".tsv", "*.*" };
+				fd.setFilterExtensions(filterExt);
+				final String selected = fd.open();
+				if (selected != null){
+					logfileText.setText(selected+".log");
+					togleAndValidate();
+				}
+			}else if (e.getSource()==testImportButton){
+				togleAndValidate();
+				/*			}else if (e.getSource()==searchScopeObject){
+				selectedSearchScope=SearchScope.OBJECT;
+				Activator.log("Search scope:"+selectedSearchScope);
+			}
+			else if (e.getSource()==searchScopeOne){
+				selectedSearchScope=SearchScope.ONELEVEL;
+				Activator.log("Search scope:"+selectedSearchScope);
+			}else if (e.getSource()==searchScopeSubtree){
+				selectedSearchScope=SearchScope.SUBTREE;
+				Activator.log("Search scope:"+selectedSearchScope);*/
+			}
 		}
 
 		@Override
@@ -307,6 +332,11 @@ public class AssociationDialog extends TitleAreaDialog {
 	private Text logfileText;
 	private Button logfileButton;
 	private String selectedLogFile;
+	private Button searchScopeSubtree;
+	private Button searchScopeOne;
+	private Button searchScopeObject;
+	private SearchScope selectedSearchScope;
+	private Label ldapScopeLabel;
 
 	public String getSelectedLogFile() {
 		return selectedLogFile;
@@ -336,7 +366,9 @@ public class AssociationDialog extends TitleAreaDialog {
 		props.put(PROP_ASSICIATIONDIALOG_LOG_FILE, value);
 		props.put(PROP_ASSICIATIONDIALOG_FROM_STATE, fromStateCombo.getText());
 		props.put(PROP_ASSICIATIONDIALOG_TO_STATE, toStateCombo.getText());
-		props.put(PROP_ASSICIATIONDIALOG_SEARCH_BASE, ldapSearchBaseText.getText());		
+		props.put(PROP_ASSICIATIONDIALOG_SEARCH_BASE, ldapSearchBaseText.getText());
+		//Activator.log("Search scope savePluginSettings:"+_getSearchScope());
+		props.put(PROP_ASSICIATIONDIALOG_SEARCH_SCOPE, _getSearchScope().toString());		
 		Activator.storeProperties(props);
 	}
 
@@ -379,7 +411,36 @@ public class AssociationDialog extends TitleAreaDialog {
 		value = (String) props.get(PROP_ASSICIATIONDIALOG_SEARCH_BASE);
 		if (value != null) {
 			ldapSearchBaseText.setText(value);
-		}		
+		}
+
+		value = (String) props.get(PROP_ASSICIATIONDIALOG_SEARCH_SCOPE);
+		//Activator.log("Search scope loadPluginSettings:"+value);
+
+		if (value != null) {
+			try{
+				switch (SearchScope.valueOf(value)) {
+				case OBJECT:
+					searchScopeObject.setSelection(true);
+					searchScopeOne.setSelection(false);
+					searchScopeSubtree.setSelection(false);
+					break;
+				case ONELEVEL:
+					searchScopeObject.setSelection(false);
+					searchScopeOne.setSelection(true);
+					searchScopeSubtree.setSelection(false);
+					break;
+				case SUBTREE:
+					searchScopeObject.setSelection(false);
+					searchScopeOne.setSelection(false);
+					searchScopeSubtree.setSelection(true);
+					break;
+				default:
+					break;
+				}
+			}catch (final Exception e) {
+				Activator.log("Failed to set search scope.", e);
+			}
+		}
 	}
 
 
@@ -439,7 +500,49 @@ public class AssociationDialog extends TitleAreaDialog {
 		ldapSearchBaseButton.setFocus();
 		ldapSearchBaseButton.setLayoutData(gridData);
 
+		//Search scope
+		gridData = new GridData();
+		gridData.verticalSpan = 3;
+		ldapScopeLabel = new Label(parent, SWT.NONE);
+		ldapScopeLabel.setText("LDAP search scope");
+		ldapScopeLabel.setToolTipText("LDAP search scope.");
+		ldapScopeLabel.setLayoutData(gridData);
 
+		gridData = new GridData();
+		gridData.grabExcessHorizontalSpace = true;
+		gridData.horizontalAlignment = GridData.FILL;
+		gridData.horizontalSpan = 2;
+		searchScopeObject = new Button(parent, SWT.RADIO);
+		searchScopeObject.setLayoutData(gridData);
+		searchScopeObject.setText("Object");
+		searchScopeObject.setToolTipText("Only get rhe selected obhect.");
+		//searchScopeObject.addSelectionListener(singleValidator);
+		//searchScopeObject.addKeyListener(singleValidator);
+
+		gridData = new GridData();
+		gridData.grabExcessHorizontalSpace = true;
+		gridData.horizontalAlignment = GridData.FILL;
+		gridData.horizontalSpan = 2;
+		searchScopeOne = new Button(parent, SWT.RADIO);
+		searchScopeOne.setLayoutData(gridData);
+		searchScopeOne.setText("One Level");
+		searchScopeOne.setToolTipText("One level search.");
+		//searchScopeOne.addSelectionListener(singleValidator);
+		//searchScopeOne.addKeyListener(singleValidator);
+
+		gridData = new GridData();
+		gridData.grabExcessHorizontalSpace = true;
+		gridData.horizontalAlignment = GridData.FILL;
+		gridData.horizontalSpan = 2;
+		searchScopeSubtree = new Button(parent, SWT.RADIO);
+		searchScopeSubtree.setLayoutData(gridData);
+		searchScopeSubtree.setText("Subtree");
+		searchScopeSubtree.setToolTipText("Subtree search.");
+		searchScopeSubtree.setSelection(true);
+		//searchScopeSubtree.addSelectionListener(singleValidator);
+		//searchScopeSubtree.addKeyListener(singleValidator);
+
+		//LDAP Filter
 		gridData = new GridData();
 		ldapFilterLabel = new Label(parent, SWT.NONE);
 		ldapFilterLabel.setText("LDAP object filter");
@@ -654,6 +757,10 @@ public class AssociationDialog extends TitleAreaDialog {
 			show(toStateCombo);
 			show(fromStateLabel);
 			show(fromStateCombo);
+			show(ldapScopeLabel);
+			show(searchScopeObject);
+			show(searchScopeOne);
+			show(searchScopeSubtree);
 			fromStateLabel.setText("Modify association status from:");
 			//Perform a modify: hide the file selectors
 			hide(fileButton);
@@ -672,6 +779,10 @@ public class AssociationDialog extends TitleAreaDialog {
 			show(ldapSearchBaseLabel);
 			show(ldapSearchBaseText);
 			show(ldapSearchBaseButton);
+			show(ldapScopeLabel);
+			show(searchScopeObject);
+			show(searchScopeOne);
+			show(searchScopeSubtree);
 
 			hide(toStateLabel);
 			hide(toStateCombo);
@@ -695,6 +806,10 @@ public class AssociationDialog extends TitleAreaDialog {
 			hide(ldapSearchBaseLabel);
 			hide(ldapSearchBaseText);
 			hide(ldapSearchBaseButton);
+			hide(ldapScopeLabel);
+			hide(searchScopeObject);
+			hide(searchScopeOne);
+			hide(searchScopeSubtree);
 			//No search required
 			hide(toStateLabel);
 			hide(toStateCombo);
@@ -805,6 +920,16 @@ public class AssociationDialog extends TitleAreaDialog {
 	}
 
 
+	private SearchScope _getSearchScope(){
+		if (searchScopeObject.getSelection()){
+			return SearchScope.OBJECT;
+		}else if (searchScopeOne.getSelection()){
+			return SearchScope.ONELEVEL;
+		}else {
+			return SearchScope.SUBTREE;
+		}
+	}
+
 
 	// We need to have the textFields into Strings because the UI gets disposed
 	// and the Text Fields are not accessible any more.
@@ -816,6 +941,9 @@ public class AssociationDialog extends TitleAreaDialog {
 		selectedFile = fileText.getText();
 		isTestOnly = testImportButton.getSelection();
 		selectedLogFile = logfileText.getText();
+		selectedSearchScope = _getSearchScope();
+		//Activator.log("Search scope saveInput:"+selectedSearchScope);
+
 		try {
 			selectedSearchRoot = DSUtil.getOEFromDN(IdmModel.getIdentityVaultFromItem(targetDriver).getDSAccess(), 
 					ldapSearchBaseText.getText());
@@ -881,6 +1009,10 @@ public class AssociationDialog extends TitleAreaDialog {
 
 	public String getSelectedFileName() {
 		return selectedFile;
+	}
+
+	public SearchScope getSelectedSearchScope() {
+		return selectedSearchScope;
 	}
 
 }
